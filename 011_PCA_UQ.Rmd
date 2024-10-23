@@ -7,7 +7,7 @@ editor_options:
 # PCA for UQ
 
 ## Import
-```{r}
+```{r}git init
 
 # PREPARE
 library(phyloseq)
