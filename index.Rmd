@@ -110,7 +110,7 @@ psAVEclr <-phyloseq(
 ## Gas flow - ind ADs 
 
 This is just for you to see variability of performance of individual ADs. 
-```{r fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
+```{r fig.height=7, fig.width=10, message=FALSE, warning=FALSE, echo=F}
 # Daily from masterfile 
 nrow(masterdata %>% 
   dplyr::filter(Gasflow_mL > 20000)) # outlier
