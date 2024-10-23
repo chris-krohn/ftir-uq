@@ -264,7 +264,7 @@ ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.charac
 ```
 
 #### Compare variation of components  
-  
+T-TESTS  
 Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
 ```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE, echo=F}
 # Plotting
@@ -353,7 +353,7 @@ ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.charac
 ```
 
 #### Compare variation of components  
-
+T-TESTS
 Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
 ```{r message=FALSE, warning=FALSE, echo=F}
 # Plotting
@@ -492,7 +492,7 @@ ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.charac
 ```
 
 #### Compare variation of components  
-
+T-TESTS
 Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
 ```{r message=FALSE, warning=FALSE, echo=F}
 # Plotting
@@ -583,7 +583,7 @@ ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.charac
 
 
 #### Compare variation of components  
-
+T-TESTS
 Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
 ```{r message=FALSE, warning=FALSE, echo=F}
 # Plotting
