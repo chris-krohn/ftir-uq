@@ -1,1 +1,1 @@
-w
+Shared resources 
