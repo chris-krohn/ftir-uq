@@ -20,7 +20,7 @@ library(tidyverse)
 # MICROBIAL DATA
 # reading in a previously saved phyloseq object
 ps_1C <- readRDS("./data/ps_215samplesJul24")
-ps_1C
+# ps_1C
 #phyloseq-class experiment-level object
 #otu_table()   OTU Table:         [ 17961 taxa and 215 samples ]
 #sample_data() Sample Data:       [ 215 samples by 48 sample variables ]
@@ -143,7 +143,7 @@ ggplot(data = DF,aes(x=PC1, y=PC2,  color = Treatment, shape = as.character(Date
 ```
 
 ## PCA raw spectra
-### PCA FTIR ATR - raw
+### ATR - raw
 ```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE, echo=F}
 library(factoextra)
 library(compositions)
@@ -220,7 +220,7 @@ g1
 dim3 <- factoextra::fviz_contrib(pca, "ind", axes = 3) 
 ```
 
-### PCA FTIR AVE - raw
+### AVE - raw
 ```{r message=FALSE, warning=FALSE, echo=F}
 library(factoextra)
 library(compositions)
@@ -349,7 +349,7 @@ ggscatter(data, y = "value", x = "wavel", alpha = 0.2, size = 0.6, color = "PCco
 ```
 
 ## PCA centred-log ratio transformed spectra 
-### PCA FTIR ATR - clr
+### ATR - clr
 ```{r fig.height=10, fig.width=10, message=FALSE, warning=FALSE, echo=F}
 library(factoextra)
 library(compositions)
@@ -425,7 +425,7 @@ g1
 ```
 
 
-### PCA FTIR AVE - clr
+### AVE - clr
 ```{r message=FALSE, warning=FALSE, echo=F}
 library(factoextra)
 library(compositions)
@@ -555,7 +555,7 @@ library(ggcorrplot)
 
 # Compute a correlation matrix
 df.cor <- df.tmp %>% filter(ID != "S963_AD6") %>%  # filter this sample as it has NAs
-  dplyr::select(Dim.1, Dim.2, Dim.3, Dim.4, Dim.5, Gasflow_mL, C_pct, H_pct, N_pct, CN, HC, Ethanol:Hexanoic.acid, ngmL_qb, DNA.mg_gCOD)
+  dplyr::select(Dim.1, Dim.2, Dim.3, Dim.4, Dim.5, Gasflow_mL, C, H_pct, N_pct, CN, HC, Ethanol:Hexanoic.acid, ngmL_qb, DNA_mg_gCOD)
 corr <- round(cor(df.cor, method = "spearman"), 1)
 p <- ggcorrplot(corr)
 p
