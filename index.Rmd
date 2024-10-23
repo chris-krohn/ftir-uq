@@ -107,6 +107,95 @@ psAVEclr <-phyloseq(
 
 ```
 
+## Gas flow - ind ADs 
+
+This is just for you to see variability of performance of individual ADs. 
+```{r fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
+# Daily from masterfile 
+nrow(masterdata %>% 
+  dplyr::filter(Gasflow_mL > 20000)) # outlier
+
+firstdate <- "2023-03-01"  
+lastdate <- "2023-08-15"
+
+masterdata %>% 
+  dplyr::filter(Gasflow_mL >= 0 &
+                  Gasflow_mL < 20000) %>% 
+    dplyr::filter(Date != c("2023-06-08")) %>%   # outlier as the heaters turned off that day
+#  dplyr::filter(AD != "AD4") %>% #AD4 always behaved differently due to the lack of pre-mixing
+  mutate(Gasflow_L = Gasflow_mL / 1000) %>% 
+  ggline(x = "Date",
+         y = "Gasflow_L", 
+         color = "AD",
+         legend = "right",
+         add = "mean_se",
+         add.params = list(width = 0.75)) +
+ #scale_color_manual("Sludge Type", values = cols) +
+  theme_light() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 45,  hjust=1),
+        legend.position = c(0.90, 0.82)
+        #legend.background=element_rect(fill = alpha("white", 0.5)) 
+        )   + 
+  
+    scale_x_date(date_breaks = "1 week", date_labels = "%b %d", 
+         date_minor_breaks = "1 day",
+          limits = as.Date(c(firstdate, lastdate)) ) +
+
+  annotate("text",x = as.Date("2023-04-21"), y = -1, label = "W08 ", size = 2.5) +   #Week 08
+   annotate("text",x = as.Date("2023-04-28"), y = -1, label = "W09 ", size = 2.5) +   #Week 09
+   annotate("text",x = as.Date("2023-05-05"), y = -1, label = "W10 ", size = 2.5) +   #Week 10
+   annotate("text",x = as.Date("2023-05-12"), y = -1, label = "W11 ", size = 2.5) +   #Week 11
+   annotate("text",x = as.Date("2023-05-19"), y = -1, label = "W12 ", size = 2.5) +   #Week 12
+   annotate("text",x = as.Date("2023-05-26"), y = -1, label = "W13 ", size = 2.5) +   #Week 13
+   annotate("text",x = as.Date("2023-06-02"), y = -1, label = "W14 ", size = 2.5) +   #Week 14
+   annotate("text",x = as.Date("2023-06-09"), y = -1, label = "W15 ", size = 2.5) +   #Week 15
+   annotate("text",x = as.Date("2023-06-16"), y = -1, label = "W16 ", size = 2.5) +   #Week 16
+   annotate("text",x = as.Date("2023-06-23"), y = -1, label = "W17 ", size = 2.5) +   #Week 17
+   annotate("text",x = as.Date("2023-06-30"), y = -1, label = "W18 ", size = 2.5) +    #Week 18
+  
+   annotate("text",x = as.Date("2023-04-24"), y = -.4, label = "Steady state", size = 2.5) +
+   annotate("segment", y = 0, yend = 0, x = as.Date("2023-04-17"), xend = as.Date("2023-05-02"),
+            arrow = arrow(ends = "last", angle = 90, length = unit(.1,"cm"))) +
+  
+   annotate("text",x = as.Date("2023-05-05"), y = -.4, label = "Glycerol   ", size = 2.5) +
+   annotate("segment", y = 0, yend = 0, x = as.Date("2023-05-02"), xend = as.Date("2023-05-07"),
+            arrow = arrow(ends = "both", angle = 90, length = unit(.1,"cm"))) +
+  
+   annotate("text",x = as.Date("2023-05-14"), y = -0.4, label = "   Inhibition", size = 2.5) +
+   annotate("segment", y = 0, yend = 0, x = as.Date("2023-05-07"), xend = as.Date("2023-05-22"),
+            arrow = arrow(ends = "both", angle = 90, length = unit(.1,"cm"))) +
+  
+  annotate("text",x = as.Date("2023-05-26"), y = -0.4, label = "Recovery", size = 2.5) +
+   annotate("segment", y = 0, yend = 0, x = as.Date("2023-05-22"), xend = as.Date("2023-05-30"),
+            arrow = arrow(ends = "both", angle = 90, length = unit(.1,"cm"))) +
+  
+  annotate("text",x = as.Date("2023-06-03"), y = -0.4, label = "Foaming ", size = 2.5) +
+   annotate("segment", y = 0, yend = 0, x = as.Date("2023-05-30"), xend = as.Date("2023-06-07"),
+            arrow = arrow(ends = "both", angle = 90, length = unit(.1,"cm"))) +
+  
+    annotate("text",x = as.Date("2023-06-10"), y = -0.4, label = "    Recovery", size = 2.5) +
+   annotate("segment", y = 0, yend = 0, x = as.Date("2023-06-07"), xend = as.Date("2023-06-15"),
+            arrow = arrow(ends = "both", angle = 90, length = unit(.1,"cm"))) +
+  
+  
+    annotate("text",x = as.Date("2023-05-25"), y = 4, label = "Paused feeding", size = 2.5, angle = 90, alpha = 0.6) +
+    annotate("rect", ymin = 0, ymax = 6,  xmin = as.Date("2023-05-22"), xmax = as.Date("2023-05-29"),
+             fill = "blue", alpha = .1) +
+
+    annotate("text",x = as.Date("2023-06-03"), y = 7, label = "Foam", size = 2.5, angle = 90, alpha = 0.6) +
+    annotate("rect", ymin = 4.5, ymax = 8, xmin = as.Date("2023-06-01"), xmax = as.Date("2023-06-06"), 
+             fill = "blue", alpha = .1) +
+  
+   annotate("text",x = as.Date("2023-06-24"), y = -.4, label = "Steady state post foam", size = 2.5) +
+   annotate("segment", y = 0, yend = 0, x = as.Date("2023-06-07"), xend = as.Date("2023-07-03"),
+            arrow = arrow(ends = "first", angle = 90, length = unit(.1,"cm"))) +
+  
+  ylab(expression(paste("Gasflow (L day"^-1*")"))) 
+
+#ggsave("./Figures/Sup_lineplot_gasdaily_indADs.png", height=15, width=25, units='cm', dpi=300)
+```
+
 
 ## Microbial 16S (V3V4) PCA 
 Just to see how microbial 16S abundances vary among the selected samples. We expect treated/inhibited samples (15th May) to be different. 
