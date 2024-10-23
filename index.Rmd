@@ -1,8 +1,7 @@
 ---
 author: "[Christian Krohn, PhD, RMIT University](https://www.rmit.edu.au/contact/staff-contacts/academic-staff/k/krohn---christian)"
 date: "`r Sys.Date()`"
-site: bookdown::bookdown_site
-documentclass: book
+documentclass: html
 github-repo: ftir-uq
 ---
 
