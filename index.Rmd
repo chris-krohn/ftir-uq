@@ -263,9 +263,9 @@ ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.charac
   ggtitle("PC1 and PC2 of ATR (raw)")
 ```
 
-#### Compare variation of components  
+#### Compare groups 
 T-TESTS  
-Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
+Assessing if there were significant differences in the means of Principal Components (PCs) coordinates between groups (control and treatment)
 ```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE, echo=F}
 # Plotting
 pc1 <- ggplot(df.tmp, aes(x = Treatment, y = Dim.1, fill = Treatment, group = AD)) +
@@ -352,9 +352,9 @@ ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.charac
   ggtitle("PC1 and PC2 of AVE (raw)")
 ```
 
-#### Compare variation of components  
+#### Compare groups
 T-TESTS
-Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
+Assessing if there were significant differences in the means of Principal Components (PCs) coordinates between groups (control and treatment)
 ```{r message=FALSE, warning=FALSE, echo=F}
 # Plotting
 pc1ave <- ggplot(df.tmp, aes(x = Treatment, y = Dim.1, fill = Treatment, group = AD)) +
@@ -491,9 +491,9 @@ ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.charac
   ggtitle("PC1 and PC2 of AVE (clr)")
 ```
 
-#### Compare variation of components  
+#### Compare groups 
 T-TESTS
-Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
+Assessing if there were significant differences in the means of Principal Components (PCs) coordinates between groups (control and treatment)
 ```{r message=FALSE, warning=FALSE, echo=F}
 # Plotting
 pc1 <- ggplot(df.tmp, aes(x = Treatment, y = Dim.1, fill = Treatment, group = AD)) +
@@ -582,9 +582,9 @@ ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.charac
 ```
 
 
-#### Compare variation of components  
+#### Compare groups  
 T-TESTS
-Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
+Assessing if there were significant differences in the means of Principal Components (PCs) coordinates between groups (control and treatment)
 ```{r message=FALSE, warning=FALSE, echo=F}
 # Plotting
 pc1ave <- ggplot(df.tmp, aes(x = Treatment, y = Dim.1, fill = Treatment, group = AD)) +
