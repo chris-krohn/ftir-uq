@@ -1,7 +1,9 @@
 ---
-output: html_document
-editor_options: 
-  chunk_output_type: inline
+author: "[Christian Krohn, PhD, RMIT University](https://www.rmit.edu.au/contact/staff-contacts/academic-staff/k/krohn---christian)"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+documentclass: book
+github-repo: ftir-uq
 ---
 
 # FTIR data assessments in collaboration with UQ
@@ -15,10 +17,11 @@ library(ggpubr)       # a handy helper package for ggplots
 theme_set(theme_bw())  # setting the theme for ggplots
 library(microbiome)
 library(tidyverse)
+library(DT)
 `%notin%` <- Negate(`%in%`)
 
 # MICROBIAL DATA
-# reading in a previously saved phyloseq object
+# reading in a previously saved phyloseq object. This contains microbial 16S-ASV abundances of all samples. 
 ps_1C <- readRDS("./data/ps_215samplesJul24")
 # ps_1C
 #phyloseq-class experiment-level object
@@ -28,7 +31,7 @@ ps_1C <- readRDS("./data/ps_215samplesJul24")
 #phy_tree()    Phylogenetic Tree: [ 17961 tips and 17822 internal nodes ]
 
 ### Pre-filtering microbial data
-ps.flt  <-  prune_taxa(taxa_sums(ps_1C) >= 10, ps_1C) #minimum reads per feature
+ps.flt  <-  prune_taxa(taxa_sums(ps_1C) >= 10, ps_1C) #m inimum reads per ASV
 #phyloseq-class experiment-level object
 #otu_table()   OTU Table:         [ 5855 taxa and 215 samples ]
 #sample_data() Sample Data:       [ 215 samples by 60 sample variables ]
@@ -47,26 +50,19 @@ masterdata$SludgeType <- factor(masterdata$SludgeType, levels = c("Control", "Tr
 masterdata$Treatment <- factor(masterdata$Treatment, levels = c("Control", "Treatment", "Full-scale", "PSTWAS"))
 masterdata$Period <- factor(masterdata$Period, levels = c("Converging", "SteadyState", "Glycerol", "Inhibition", "Recovery/Feedingpause", "Recovery/Foaming", "Recovery/Postfoam", "SteadyState/Postfoam"))
 
-#masterdata <- masterdata %>% 
-# mutate(across(Observed:pielou_ev, ~as.numeric(.)))
-#masterdata <- masterdata %>% 
-# mutate(DNA_mgL = as.numeric(DNA_mgL))
-## quick look at data
-# str(masterdata)
 
-
-# REFLECTANCE DATA 
+# LOAD REFLECTANCE DATA 
 ATR <- read.csv("./data/ADVATR.csv")[-1,] 
-ATR <-ATR %>% rownames_to_column("ID")%>% column_to_rownames("X") %>% dplyr::select(-ID) %>% 
+ATR <- ATR %>% rownames_to_column("ID")%>% column_to_rownames("X") %>% dplyr::select(-ID) %>% 
   mutate(across(S537_AD1:S1370_AD6, as.numeric))
+# OPTION 1: raw
 ATR <-  as.matrix(ATR)
+head(ATR) %>% datatable(caption = "ATR raw") 
+# OPTION 2: clr transformed
 ATRclr <- compositions::clr(ATR)
-# summary(ATRclr)
-#ATR <-  ATR + -min(ATR) #lift all numbers by the negative value to get only positive
-# ATR <- ATR - mean(ATR)
-# ATR <- log1p(ATR)
-# summary(ATRclr)
+head(ATRclr) %>% datatable(caption = "ATR clr") 
 
+# CREATE METADATA FOR 24 SELECTED SAMPLES AND MATCH SAMPLE NAMES WITH SPECTRA DF
 filtervec <- c("2023-05-01", "2023-05-15", "2023-06-07","2023-06-12")  # 12thJuneDNA = 13th June EPS
 filtervec2 <- c("AD1", "AD2", "AD3", "AD4", "AD5","AD6")  # check
 metadata <- masterdata %>% 
@@ -74,7 +70,9 @@ metadata <- masterdata %>%
                   AD %in% filtervec2)
 metadata$SampleID.EPS <- colnames(ATR)
 metadata <- metadata %>% column_to_rownames("SampleID.EPS")
+head(metadata ) %>% datatable(caption = "metadata for 24 selected samples") 
 
+# CREATE A PHYLOSEQ OBJECTS (combined metadata and spectra)
 psATR <-phyloseq(
   otu_table(ATR, taxa_are_rows = T), 
   sample_data(metadata)
@@ -85,17 +83,16 @@ psATRclr <-phyloseq(
   sample_data(metadata)
 )
 
+
 # ABSORBANCE DATA 
 AVE <- read.csv("./data/AVE.csv")[-1,] 
-AVE <-AVE %>% rownames_to_column("ID")%>% column_to_rownames("X") %>% dplyr::select(-ID) %>% 
+AVE <- AVE %>% rownames_to_column("ID")%>% column_to_rownames("X") %>% dplyr::select(-ID) %>% 
   mutate(across(S537_AD1:S1370_AD6, as.numeric))
+# OPTION 1: raw
 AVE <-  as.matrix(AVE)
+# OPTION 2: clr transformed
 AVEclr <- compositions::clr(AVE)
-# summary(AVEclr)
-#ATR <-  ATR + -min(ATR) #lift all numbers by the negative value to get only positive
-# ATR <- ATR - mean(ATR)
-# ATR <- log1p(ATR)
-# summary(AVEclr)
+# head(AVEclr)
 
 # CREATE A PHYLOSEQ OBJECTS (combined metadata and spectra)
 psAVE <-phyloseq(
@@ -112,7 +109,8 @@ psAVEclr <-phyloseq(
 ```
 
 
-## PCA 16S 
+## Microbial 16S (V3V4) PCA 
+Just to see how microbial 16S abundances vary among the selected samples. We expect treated/inhibited samples (15th May) to be different. 
 ```{r message=FALSE, warning=FALSE, echo=F}
 symbolsize <- 3
 
@@ -135,19 +133,21 @@ speciesscores <- data.frame(ordination$CA$v)
 # ordination$CA$eig
 DF <- plot_ordination(physeqPCA, ordination, justDF = TRUE, axes=1:2)
 # plotting ordination
-ggplot(data = DF,aes(x=PC1, y=PC2,  color = Treatment, shape = as.character(Date)) ) + 
+ggplot(data = DF,aes(x=PC1, y=PC2,  color = Treatment, shape = as.character(Period)) ) + 
     geom_point(alpha = 0.5, na.rm=TRUE, size = symbolsize) +
     geom_text(label = DF$AD,  nudge_x = 0.4, nudge_y = 0.4, alpha = 0.5) +
    labs(shape = "Date")
 #ggsave(plot = p, "./Figures/PCA_EPSsubset.png", height=7, width=11, units='cm', dpi=300)
 ```
 
-## PCA raw spectra
-### ATR - raw
-```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE, echo=F}
+## Raw spectra
+
+### PCA ATR
+```{r message=FALSE, warning=FALSE, echo=T}
 library(factoextra)
 library(compositions)
 my_comparisons <- list(c(1, 2))
+symbolsize <- 3
 
 ps.temp <- psATR
 pca <- prcomp(otu_table(ps.temp),  scale = FALSE, center = TRUE)
@@ -166,7 +166,19 @@ df.tmp <- (data.frame(cord) %>% rownames_to_column("ID")) %>% left_join(sample_d
 # compare_means(Dim.2 ~ Treatment, method = "t.test", df.tmp) #0.908
 # compare_means(Dim.3 ~ Treatment, method = "t.test", df.tmp) #0.0075 **
 # compare_means(Dim.4 ~ Treatment, method = "t.test", df.tmp) #0.205
+```
 
+```{r message=FALSE, warning=FALSE, echo=F}
+ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.character(Period)) ) + 
+    geom_point(alpha = 0.5, na.rm=TRUE, size = symbolsize) +
+   labs(shape = "Date") +
+  ggtitle("PC1 and PC2 of ATR (raw)")
+```
+
+#### Compare variation of components  
+  
+Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
+```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE, echo=F}
 # Plotting
 pc1 <- ggplot(df.tmp, aes(x = Treatment, y = Dim.1, fill = Treatment, group = AD)) +
   geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
@@ -217,11 +229,12 @@ g1 <- ggarrange(pc1, pc2, pc3, pc4,  common.legend = TRUE, nrow = 4, ncol = 1)
 #ggsave(plot = g1, "./Figures/PC_cordinates_ATR.png", height=26, width=14, units='cm', dpi=300)
 g1
 
+## FOR LATER COMPARISON WITH AVE
 dim3 <- factoextra::fviz_contrib(pca, "ind", axes = 3) 
 ```
 
-### AVE - raw
-```{r message=FALSE, warning=FALSE, echo=F}
+### PCA AVE
+```{r message=FALSE, warning=FALSE, echo=T}
 library(factoextra)
 library(compositions)
 
@@ -242,8 +255,19 @@ df.tmp <- (data.frame(cord) %>% rownames_to_column("ID")) %>%
 # compare_means(Dim.2 ~ Treatment, method = "t.test", df.tmp) #0.397
 # compare_means(Dim.3 ~ Treatment, method = "t.test", df.tmp) #0.026 *
 # compare_means(Dim.4 ~ Treatment, method = "t.test", df.tmp) #0.502
+```
 
+```{r message=FALSE, warning=FALSE, echo=F}
+ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.character(Period)) ) + 
+    geom_point(alpha = 0.5, na.rm=TRUE, size = symbolsize) +
+   labs(shape = "Date") +
+  ggtitle("PC1 and PC2 of AVE (raw)")
+```
 
+#### Compare variation of components  
+
+Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
+```{r message=FALSE, warning=FALSE, echo=F}
 # Plotting
 pc1ave <- ggplot(df.tmp, aes(x = Treatment, y = Dim.1, fill = Treatment, group = AD)) +
   geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
@@ -348,9 +372,9 @@ ggscatter(data, y = "value", x = "wavel", alpha = 0.2, size = 0.6, color = "PCco
 
 ```
 
-## PCA centred-log ratio transformed spectra 
-### ATR - clr
-```{r fig.height=10, fig.width=10, message=FALSE, warning=FALSE, echo=F}
+## Transformed spectra - centred-log ratio
+### PCA ATR clr
+```{r fig.height=10, fig.width=10, message=FALSE, warning=FALSE, echo=T}
 library(factoextra)
 library(compositions)
 
@@ -370,7 +394,19 @@ df.tmp <- (data.frame(cord) %>% rownames_to_column("ID")) %>% left_join(sample_d
 # compare_means(Dim.2 ~ Treatment, method = "t.test", df.tmp) #0.627
 # compare_means(Dim.3 ~ Treatment, method = "t.test", df.tmp) #0.00117 **
 # compare_means(Dim.4 ~ Treatment, method = "t.test", df.tmp) # 0.518
+```
 
+```{r message=FALSE, warning=FALSE, echo=F}
+ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.character(Period)) ) + 
+    geom_point(alpha = 0.5, na.rm=TRUE, size = symbolsize) +
+   labs(shape = "Date") +
+  ggtitle("PC1 and PC2 of AVE (clr)")
+```
+
+#### Compare variation of components  
+
+Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
+```{r message=FALSE, warning=FALSE, echo=F}
 # Plotting
 pc1 <- ggplot(df.tmp, aes(x = Treatment, y = Dim.1, fill = Treatment, group = AD)) +
   geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
@@ -416,6 +452,9 @@ pc5 <- ggplot(df.tmp, aes(x = Treatment, y = Dim.5, fill = Treatment, group = AD
   theme(axis.title.x = element_blank())+
   stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..))+
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+
+## FOR LATER COMPARISON WITH AVE
+dim3 <- factoextra::fviz_contrib(pca, "ind", axes = 3) 
 ```
 
 ```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE, echo=F}
@@ -425,8 +464,8 @@ g1
 ```
 
 
-### AVE - clr
-```{r message=FALSE, warning=FALSE, echo=F}
+### PCA AVE - clr
+```{r message=FALSE, warning=FALSE, echo=T}
 library(factoextra)
 library(compositions)
 my_comparisons <- list(c(1, 2))
@@ -445,7 +484,20 @@ df.tmp <- (data.frame(cord) %>% rownames_to_column("ID")) %>% left_join(sample_d
 # compare_means(Dim.2 ~ Treatment, method = "t.test", df.tmp) #0.708
 # compare_means(Dim.3 ~ Treatment, method = "t.test", df.tmp) #0.0228 *
 # compare_means(Dim.4 ~ Treatment, method = "t.test", df.tmp) #0.613
+```
 
+```{r message=FALSE, warning=FALSE, echo=F}
+ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.character(Period)) ) + 
+    geom_point(alpha = 0.5, na.rm=TRUE, size = symbolsize) +
+   labs(shape = "Date") +
+  ggtitle("PC1 and PC2 of AVE (clr)")
+```
+
+
+#### Compare variation of components  
+
+Assessing if there were significant differences in the variation of Principal Components (PCs) between groups (control and treatment)
+```{r message=FALSE, warning=FALSE, echo=F}
 # Plotting
 pc1ave <- ggplot(df.tmp, aes(x = Treatment, y = Dim.1, fill = Treatment, group = AD)) +
   geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
@@ -500,13 +552,16 @@ ggarrange(pc1ave, pc2ave, pc3ave, pc4ave,  common.legend = TRUE, nrow = 4, ncol 
 
 ```
 
+### Comparing ATR and AVE of PC3
 ```{r, echo=F}
 g3 <- ggarrange(pc3, pc3ave, common.legend = TRUE, nrow = 2, ncol = 1) 
 #ggsave(plot = g3, "./Figures/PC_cordinates_PC3clr.png", height=24, width=14, units='cm', dpi=300)
 g3
 ```
 
-### Comparing ATR and AVE of PC3
+### Spectra contributions to PC3
+
+Unsure why the clr-transformed ATR spectra resulted in such different PC3 contributions compared to clr-transformed AVE spectra.
 ```{r message=FALSE, warning=FALSE, echo=F}
 
 # dim1 <- factoextra::fviz_contrib(pca, "var", axes = 1) 
@@ -533,7 +588,8 @@ data$wavel <- as.numeric(data$wavel)
 data <- data %>% pivot_longer(contrib:contribATR, names_to = "PCcontrib")
 data$PCcontrib <- as.factor(data$PCcontrib)
 ```
-### Spectra contributions to PC3
+
+
 ```{r message=FALSE, warning=FALSE, echo=F}
 ggscatter(data, y = "value", x = "wavel", alpha = 0.2, size = 0.6, color = "PCcontrib") +
   ylab("PC3 contribution") + xlab("Wavelength")  + 
@@ -549,6 +605,7 @@ ggscatter(data, y = "value", x = "wavel", alpha = 0.2, size = 0.6, color = "PCco
 ```
 
 ## Corplot
+This needs further assessments/regression etc as it was done without any consideration to data distribution / validity.
 ```{r fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
 
 library(ggcorrplot)
@@ -556,8 +613,8 @@ library(ggcorrplot)
 # Compute a correlation matrix
 df.cor <- df.tmp %>% filter(ID != "S963_AD6") %>%  # filter this sample as it has NAs
   dplyr::select(Dim.1, Dim.2, Dim.3, Dim.4, Dim.5, Gasflow_mL, C, H_pct, N_pct, CN, HC, Ethanol:Hexanoic.acid, ngmL_qb, DNA_mg_gCOD)
-corr <- round(cor(df.cor, method = "spearman"), 1)
+corr <- round(cor(df.cor, method = "spearman"), 1) 
 p <- ggcorrplot(corr)
-p
+p + ggtitle("AVE clr correlations to variables")
 #ggsave(plot = p, "./Figures/PC3correlations_clr.png", height=18, width=18, units='cm', dpi=300)
 ```
