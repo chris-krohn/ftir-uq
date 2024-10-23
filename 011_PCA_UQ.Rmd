@@ -4,10 +4,10 @@ editor_options:
   chunk_output_type: inline
 ---
 
-# PCA for UQ
+# FTIR data assessments in collaboration with UQ
 
 ## Import
-```{r}
+```{r message=FALSE, warning=FALSE}
 
 # PREPARE
 library(phyloseq)
@@ -19,7 +19,7 @@ library(tidyverse)
 
 # MICROBIAL DATA
 # reading in a previously saved phyloseq object
-ps_1C <- readRDS("ps_215samplesNov23")
+ps_1C <- readRDS("./data/ps_215samplesJul24")
 ps_1C
 #phyloseq-class experiment-level object
 #otu_table()   OTU Table:         [ 17961 taxa and 215 samples ]
@@ -37,7 +37,7 @@ ps.flt  <-  prune_taxa(taxa_sums(ps_1C) >= 10, ps_1C) #minimum reads per feature
 
 # MASTERDATA
 # change this path to where you store the .csv file. you can provide an absolute path like this. Check the path syntax for Windows as it might be different. 
-masterdata <- read.csv("/Users/christiankrohn/Library/CloudStorage/OneDrive-RMITUniversity/Documents/Project1C_files/Experiment_LongTermMonitoring/Data/Rnalysis_longtermexp/masterdataMay24.csv")
+masterdata <- read.csv("./data/masterdataProject1C_May24.csv")
 ## Change date to date format in R 
 masterdata <-  masterdata %>%
   mutate(Date = lubridate::dmy(as.character(Date)) )
@@ -56,7 +56,7 @@ masterdata$Period <- factor(masterdata$Period, levels = c("Converging", "SteadyS
 
 
 # REFLECTANCE DATA 
-ATR <- read.csv("/Users/christiankrohn/Library/CloudStorage/OneDrive-RMITUniversity/Documents/Project1C_files/Experiment_LongTermMonitoring/Data/UQ_EPS/ADVATR.csv")[-1,] 
+ATR <- read.csv("./data/ADVATR.csv")[-1,] 
 ATR <-ATR %>% rownames_to_column("ID")%>% column_to_rownames("X") %>% dplyr::select(-ID) %>% 
   mutate(across(S537_AD1:S1370_AD6, as.numeric))
 ATR <-  as.matrix(ATR)
@@ -86,7 +86,7 @@ psATRclr <-phyloseq(
 )
 
 # ABSORBANCE DATA 
-AVE <- read.csv("/Users/christiankrohn/Library/CloudStorage/OneDrive-RMITUniversity/Documents/Project1C_files/Experiment_LongTermMonitoring/Data/UQ_EPS/AVE.csv")[-1,] 
+AVE <- read.csv("./data/AVE.csv")[-1,] 
 AVE <-AVE %>% rownames_to_column("ID")%>% column_to_rownames("X") %>% dplyr::select(-ID) %>% 
   mutate(across(S537_AD1:S1370_AD6, as.numeric))
 AVE <-  as.matrix(AVE)
