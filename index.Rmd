@@ -238,11 +238,11 @@ my_comparisons <- list(c(1, 2))
 symbolsize <- 3
 
 ps.temp <- psATR
-pca <- prcomp(otu_table(ps.temp),  scale = FALSE, center = TRUE)
+pca <- prcomp(data.frame(t(otu_table(ps.temp)), check.names = FALSE), scale = TRUE, center = TRUE)
 # summary(otu_table(ps.temp))
 # head(otu_table(ps.temp))
 
-data <- get_pca(pca)
+data <- factoextra::get_pca_ind(pca)
 cord <- data$coord  # extract sample coordinates of PC
 cor <- data$cor
 cos2 <- data$cos2
@@ -328,9 +328,9 @@ library(compositions)
 
 ps.temp <- psAVE
 # summary(otu_table(ps.temp))
-pca <- prcomp(data.frame(otu_table(ps.temp)), scale = FALSE, center = TRUE)
+pca <- prcomp(data.frame(t(otu_table(ps.temp)), check.names = FALSE), scale = TRUE, center = TRUE)
 # otu_table(ps.temp)
-data <- get_pca(pca)
+data <- get_pca_ind(pca)
 cord <- data$coord
 cor <- data$cor
 cos2 <- data$cos2
@@ -416,281 +416,87 @@ g3 <- ggarrange(pc3, pc3ave, common.legend = TRUE, nrow = 2, ncol = 1)
 g3
 ```
 
-```{r message=FALSE, warning=FALSE, echo=F}
-#dim1 <- factoextra::fviz_contrib(pca, "var", axes = 1) 
-#dim2 <- factoextra::fviz_contrib(pca, "var", axes = 2) 
-#dim3 <- factoextra::fviz_contrib(pca, "var", axes = 3) 
-#dim4 <- factoextra::fviz_contrib(pca, "var", axes = 4) 
-#dims <- ggarrange(dim1, dim2, dim3, dim4, ncol = 2, nrow = 2)
-#dims
-
-#dim1 <- factoextra::fviz_contrib(pca, "ind", axes = 1) 
-#dim2 <- factoextra::fviz_contrib(pca, "ind", axes = 2) 
-dim3ave <- factoextra::fviz_contrib(pca, "ind", axes = 3) 
-#dim4 <- factoextra::fviz_contrib(pca, "ind", axes = 4) 
-#dims <- ggarrange(dim1, dim2, dim3, dim4, ncol = 2, nrow = 2)
-#dim3ave
-dataave <- dim3ave$data
-dataave$name <- as.numeric(dataave$name)
-dataatr <- dim3$data
-dataatr$name <- as.numeric(dataatr$name)
-dataave$contribATR <- dataatr$contrib
-data <- dataave %>% rownames_to_column("wavel")
-data <- data %>% select(-name)
-data$wavel <- as.numeric(data$wavel)
-data <- data %>% pivot_longer(contrib:contribATR, names_to = "PCcontrib")
-data$PCcontrib <- as.factor(data$PCcontrib)
-#str(data)
-```
-
-### Spectra contributions to PC3
+### Spectra contributions
+#### ATR
 ```{r message=FALSE, warning=FALSE , echo=F}
-ggscatter(data, y = "value", x = "wavel", alpha = 0.2, size = 0.6, color = "PCcontrib") +
-  ylab("PC3 contribution") + xlab("Wavelength")  + 
+ps.temp <- psATR
+# summary(otu_table(ps.temp))
+pca <- prcomp(data.frame(t(otu_table(ps.temp)), check.names = FALSE ), scale = FALSE, center = TRUE)
+
+# Coordinates
+loadings_df <- as.data.frame(pca$rotation) %>%
+  rownames_to_column("Wavelength") %>% 
+  mutate(Wavelength = as.numeric(Wavelength)) # Makes the variable names a column
+
+# select PCs to plot
+loadings_df <- loadings_df %>% dplyr::select(Wavelength:PC3) %>% 
+  pivot_longer(cols = -Wavelength, names_to = "PC")
+
+ggscatter(loadings_df, y = "value", x = "Wavelength", 
+          alpha = 0.2, size = 0.6,
+          color = "PC") +
+  ylab("PC contribution") + xlab("Wavelength")  + 
   scale_x_continuous(limits = c(500, 4500),
                      breaks = c(1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500)) +
-  ylim(-0.01,0.3) + 
-  scale_color_discrete(name = "Contributions to PC3", labels = c("AVE", "ATR"))   +
+  scale_color_discrete(name = "Contributions to PC")   +
   guides(colour = guide_legend(override.aes = list(size = 4), 
                                keywidth = 0.5, 
                                 keyheight = 0.5))+ 
-  theme(legend.position = c(0.8, 0.8))
-
-#ggsave(plot = p, "./Figures/PC3contributions.png", height=12, width=25, units='cm', dpi=300)
-
+  theme(legend.position = c(0.9, 0.9))
 ```
 
-## Transformed spectra - centred-log ratio
-### PCA ATR clr
-```{r fig.height=10, fig.width=10, message=FALSE, warning=FALSE, echo=T}
-library(factoextra)
-library(compositions)
-
-ps.temp <- psATRclr
-pca <- prcomp(otu_table(ps.temp),  scale = FALSE, center = FALSE)
+#### AVE**
+```{r}
+library(ggrepel)
+ps.temp <- psAVE
 # summary(otu_table(ps.temp))
-# otu_table(ps.temp)
-data <- get_pca(pca)
-cord <- data$coord
-cor <- data$cor
-cos2 <- data$cos2
-contrib <- data$contrib
+pca <- prcomp(data.frame(t(otu_table(ps.temp)), check.names = FALSE ), scale = FALSE, center = TRUE)
 
+# Coordinates
+loadings_df <- as.data.frame(pca$rotation) %>%
+  rownames_to_column("Wavelength") %>% 
+  mutate(Wavelength = as.numeric(Wavelength))   # Makes the variable names a column
 
-df.tmp <- (data.frame(cord) %>% rownames_to_column("ID")) %>% left_join(sample_data(ps.temp) %>% rownames_to_column("ID") ) 
-# compare_means(Dim.1 ~ Treatment, method = "t.test", df.tmp) #0.281
-# compare_means(Dim.2 ~ Treatment, method = "t.test", df.tmp) #0.627
-# compare_means(Dim.3 ~ Treatment, method = "t.test", df.tmp) #0.00117 **
-# compare_means(Dim.4 ~ Treatment, method = "t.test", df.tmp) # 0.518
-```
+# select PCs to plot
+loadings_df <- loadings_df %>% dplyr::select(Wavelength, PC2, PC3) %>% 
+  pivot_longer(cols = -Wavelength, names_to = "PC")
 
-```{r message=FALSE, warning=FALSE, echo=F}
-ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.character(Period)) ) + 
-    geom_point(alpha = 0.5, na.rm=TRUE, size = symbolsize) +
-   labs(shape = "Date") +
-  ggtitle("PC1 and PC2 of AVE (clr)")
-```
+# create a df for the text labels. 
+label_df <- loadings_df %>%
+  filter(PC == "PC2" & Wavelength %in% c(2924.085, 2857.070)) %>%
+  mutate(label =  case_when(
+                          Wavelength == 2924.085 ~ "2924.085*'~cm'^-1*':'*CH[4]",
+                          Wavelength == 2857.070 ~ "2857.070*'~cm'^-1*':'*CHO"
+                            )) 
 
-#### Compare groups 
-T-TESTS, p-values
-Assessing if there were significant differences in the means of Principal Components (PCs) coordinates between groups (control and treatment)
-```{r message=FALSE, warning=FALSE, echo=F}
-# Plotting
-pc1 <- ggplot(df.tmp, aes(x = Treatment, y = Dim.1, fill = Treatment, group = AD)) +
-  geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
-  facet_wrap(~ Period, scales = "fixed", nrow = 1) +
-  labs(x = "Treatment", y = "Dim.1") + ggtitle("PC1 ATR clr") +
-  geom_text(aes(label = AD), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
-  theme(axis.title.x = element_blank())+
-  stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..))+
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-
-pc2 <- ggplot(df.tmp, aes(x = Treatment, y = Dim.2, fill = Treatment, group = AD)) +
-  geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
-  facet_wrap(~ Period, scales = "fixed", nrow = 1) +
-  labs(x = "Treatment", y = "Dim.2")  + ggtitle("PC2 ATR clr")+
-  geom_text(aes(label = AD), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
-  theme(axis.title.x = element_blank())+
-  stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..))+
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-
-pc3 <- ggplot(df.tmp, aes(x = Treatment, y = Dim.3, fill = Treatment, group = AD)) +
-  geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
-  facet_wrap(~ Period, scales = "fixed", nrow = 1) +
-  labs(x = "Treatment", y = "Dim.3") + ggtitle("PC3 ATR clr")+
-  geom_text(aes(label = AD), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
-  theme(axis.title.x = element_blank())+
-  stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..))+
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-
-pc4 <- ggplot(df.tmp, aes(x = Treatment, y = Dim.4, fill = Treatment, group = AD)) +
-  geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
-  facet_wrap(~ Period, scales = "fixed", nrow = 1) +
-  labs(x = "Treatment", y = "Dim.4")  + ggtitle("PC4 ATR clr")+
-  geom_text(aes(label = AD), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
-  theme(axis.title.x = element_blank())+
-  stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..))+
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-
-pc5 <- ggplot(df.tmp, aes(x = Treatment, y = Dim.5, fill = Treatment, group = AD)) +
-  geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
-  facet_wrap(~ Period, scales = "fixed", nrow = 1) +
-  labs(x = "Treatment", y = "Dim.5")  + ggtitle("PC5 ATR clr")+
-  geom_text(aes(label = AD), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
-  theme(axis.title.x = element_blank())+
-  stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..))+
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-
-## FOR LATER COMPARISON WITH AVE
-dim3 <- factoextra::fviz_contrib(pca, "ind", axes = 3) 
-```
-
-```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE, echo=F}
-g1 <- ggarrange(pc1, pc2, pc3, pc4,  common.legend = TRUE, nrow = 4, ncol = 1) 
-#ggsave(plot = g1, "./Figures/PC_cordinates_ATR.png", height=26, width=14, units='cm', dpi=300)
-g1
-```
-
-
-### PCA AVE - clr
-```{r message=FALSE, warning=FALSE, echo=T}
-library(factoextra)
-library(compositions)
-my_comparisons <- list(c(1, 2))
-
-ps.temp <- psAVEclr
-# summary(otu_table(ps.temp))
-pca <- prcomp(data.frame(otu_table(ps.temp)), scale = FALSE, center = FALSE)  # FALSE FOR BOTH - CLR data should already be centred and scaled. 
-# otu_table(ps.temp)
-data <- get_pca(pca)
-cord <- data$coord
-cor <- data$cor
-cos2 <- data$cos2
-contrib <- data$contrib
-df.tmp <- (data.frame(cord) %>% rownames_to_column("ID")) %>% left_join(sample_data(ps.temp) %>% rownames_to_column("ID") ) 
-# compare_means(Dim.1 ~ Treatment, method = "t.test", df.tmp) #0.172
-# compare_means(Dim.2 ~ Treatment, method = "t.test", df.tmp) #0.708
-# compare_means(Dim.3 ~ Treatment, method = "t.test", df.tmp) #0.0228 *
-# compare_means(Dim.4 ~ Treatment, method = "t.test", df.tmp) #0.613
-```
-
-```{r message=FALSE, warning=FALSE, echo=F}
-ggplot(data = df.tmp,aes(x=Dim.1, y=Dim.2,  color = Treatment, shape = as.character(Period)) ) + 
-    geom_point(alpha = 0.5, na.rm=TRUE, size = symbolsize) +
-   labs(shape = "Date") +
-  ggtitle("PC1 and PC2 of AVE (clr)")
-```
-
-
-#### Compare groups  
-T-TESTS, p-values
-Assessing if there were significant differences in the means of Principal Components (PCs) coordinates between groups (control and treatment)
-```{r message=FALSE, warning=FALSE, echo=F}
-# Plotting
-pc1ave <- ggplot(df.tmp, aes(x = Treatment, y = Dim.1, fill = Treatment, group = AD)) +
-  geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
-  facet_wrap(~ Period, scales = "fixed", nrow = 1) +
-  labs(x = "Treatment", y = "Dim.1") + ggtitle("PC1 AVE clr") +
-  geom_text(aes(label = AD), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
-  theme(axis.title.x = element_blank())+
-  stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..)) +
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-
-pc2ave <- ggplot(df.tmp, aes(x = Treatment, y = Dim.2, fill = Treatment, group = AD)) +
-  geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
-  facet_wrap(~ Period, scales = "fixed", nrow = 1) +
-  labs(x = "Treatment", y = "Dim.2")  + ggtitle("PC2 AVE clr")+
-  geom_text(aes(label = AD), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
-  theme(axis.title.x = element_blank())+
-  stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..)) +
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-
-pc3ave <- ggplot(df.tmp, aes(x = Treatment, y = Dim.3, fill = Treatment, group = AD)) +
-  geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
-  facet_wrap(~ Period, scales = "fixed", nrow = 1) +
-  labs(x = "Treatment", y = "Dim.3") + ggtitle("PC3 AVE clr")+
-  geom_text(aes(label = AD), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
-  theme(axis.title.x = element_blank())+
-  stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..)) +
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-
-pc4ave <- ggplot(df.tmp, aes(x = Treatment, y = Dim.4, fill = Treatment, group = AD)) +
-  geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
-  facet_wrap(~ Period, scales = "fixed", nrow = 1) +
-  labs(x = "Treatment", y = "Dim.4")  + ggtitle("PC4 AVE clr")+
-  geom_text(aes(label = AD), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
-  theme(axis.title.x = element_blank())+
-  stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..)) +
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-
-pc5ave <- ggplot(df.tmp, aes(x = Treatment, y = Dim.5, fill = Treatment, group = AD)) +
-  geom_bar(stat = "identity", position = position_dodge(0.9),color = "black") +
-  facet_wrap(~ Period, scales = "fixed", nrow = 1) +
-  labs(x = "Treatment", y = "Dim.5")  + ggtitle("PC5 AVE clr")+
-  geom_text(aes(label = AD), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
-  theme(axis.title.x = element_blank())+
-  stat_compare_means(comparisons=my_comparisons, method = "t.test", aes(label=..p.format..)) +
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-```
-
-```{r fig.height=10, fig.width=7, message=FALSE, warning=FALSE, echo=F}
-ggarrange(pc1ave, pc2ave, pc3ave, pc4ave,  common.legend = TRUE, nrow = 4, ncol = 1) 
-# g2 <- ggarrange(pc1ave, pc3ave, pc4ave,  common.legend = TRUE, nrow = 2, ncol = 2) 
-# ggsave(plot = g2, "./Figures/PC_cordinates_AVEclr.png", height=20, width=25, units='cm', dpi=300)
-
-```
-
-### Comparing ATR and AVE of PC3
-```{r, echo=F}
-g3 <- ggarrange(pc3, pc3ave, common.legend = TRUE, nrow = 2, ncol = 1) 
-#ggsave(plot = g3, "./Figures/PC_cordinates_PC3clr.png", height=24, width=14, units='cm', dpi=300)
-g3
-```
-
-### Spectra contributions to PC3
-
-Unsure why the clr-transformed ATR spectra resulted in such different PC3 contributions compared to clr-transformed AVE spectra.
-```{r message=FALSE, warning=FALSE, echo=F}
-
-# dim1 <- factoextra::fviz_contrib(pca, "var", axes = 1) 
-#dim2 <- factoextra::fviz_contrib(pca, "var", axes = 2) 
-#dim3 <- factoextra::fviz_contrib(pca, "var", axes = 3) 
-#dim4 <- factoextra::fviz_contrib(pca, "var", axes = 4) 
-#dims <- ggarrange(dim1, dim2, dim3, dim4, ncol = 2, nrow = 2)
-#dims
-
-#dim1 <- factoextra::fviz_contrib(pca, "ind", axes = 1) 
-#dim2 <- factoextra::fviz_contrib(pca, "ind", axes = 2) 
-dim3ave <- factoextra::fviz_contrib(pca, "ind", axes = 3) 
-#dim4 <- factoextra::fviz_contrib(pca, "ind", axes = 4) 
-#dims <- ggarrange(dim1, dim2, dim3, dim4, ncol = 2, nrow = 2)
-#dim3ave
-dataave <- dim3ave$data
-dataave$name <- as.numeric(dataave$name)
-dataatr <- dim3$data
-dataatr$name <- as.numeric(dataatr$name)
-dataave$contribATR <- dataatr$contrib
-data <- dataave %>% rownames_to_column("wavel")
-data <- data %>% select(-name)
-data$wavel <- as.numeric(data$wavel)
-data <- data %>% pivot_longer(contrib:contribATR, names_to = "PCcontrib")
-data$PCcontrib <- as.factor(data$PCcontrib)
-```
-
-
-```{r message=FALSE, warning=FALSE, echo=F}
-ggscatter(data, y = "value", x = "wavel", alpha = 0.2, size = 0.6, color = "PCcontrib") +
-  ylab("PC3 contribution") + xlab("Wavelength")  + 
-  scale_x_continuous(limits = c(500, 4500),
-                     breaks = c(1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500)) +
-  ylim(-0.01,0.3) + 
-  scale_color_discrete(name = "Contributions to PC3", labels = c("AVE", "ATR"))   +
+ggscatter(loadings_df, y = "value", x = "Wavelength", 
+          alpha = 0.2, size = 0.6,
+          color = "PC") +
+  ylab("PC contribution") + xlab("Wavelength")  + 
+ scale_x_reverse(limits = c(4000, 500),
+                   breaks = c(4000, 3500, 3000, 2500, 2000, 1500, 1000, 500)
+              ) +  # <- reverse the x-axis
+  scale_color_discrete(name = "Contributions to PC")   +
   guides(colour = guide_legend(override.aes = list(size = 4), 
                                keywidth = 0.5, 
                                 keyheight = 0.5))+ 
-  theme(legend.position = c(0.8, 0.8))
-#ggsave(plot = p, "./Figures/PC3contributions_clr.png", height=12, width=25, units='cm', dpi=300)
+  ylim(-0.05, 0.05) +
+  theme_minimal() +
+  theme(legend.position = c(0.88, 0.9),
+        panel.grid.minor = element_line(color = "gray90", size = 0.3)) +
+  geom_text_repel(data = label_df,
+                  aes(x = Wavelength, y = value, label = label),
+                  parse = TRUE, 
+                  size = 3.5,
+                  max.overlaps = 10,
+                  nudge_y = -0.02,
+                  direction = "y",
+                  segment.color = "grey30",
+                  segment.size = 0.3) 
+
+ggsave("./Figures/PCloadings.pdf", height=10, width=25, units='cm', dpi=300)
 ```
+
 
 ## Corplot
 This needs further assessments/regression etc as it was done without any consideration to data distribution / validity.
