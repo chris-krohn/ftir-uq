@@ -3,6 +3,8 @@ author: "[Christian Krohn, PhD, RMIT University](https://www.rmit.edu.au/contact
 date: "`r Sys.Date()`"
 documentclass: html
 github-repo: ftir-uq
+editor_options: 
+  chunk_output_type: console
 ---
 
 # FTIR data assessments in collaboration with UQ
@@ -77,10 +79,10 @@ psATR <-phyloseq(
   sample_data(metadata)
 )
 
-psATRclr <-phyloseq(
-  otu_table(ATRclr, taxa_are_rows = T), 
-  sample_data(metadata)
-)
+#psATRclr <-phyloseq(
+#  otu_table(ATRclr, taxa_are_rows = T), 
+#  sample_data(metadata)
+#)
 
 
 # ABSORBANCE DATA 
@@ -99,11 +101,76 @@ psAVE <-phyloseq(
   sample_data(metadata)
 )
 
-psAVEclr <-phyloseq(
-  otu_table(AVEclr, taxa_are_rows = T), 
-  sample_data(metadata)
-)
+#psAVEclr <-phyloseq(
+#  otu_table(AVEclr, taxa_are_rows = T), 
+#  sample_data(metadata)
+#)
 
+# FUnctions 
+
+amp2phyloseq <- function(amp) {
+  if (!requireNamespace("phyloseq", quietly = TRUE)) {
+    stop("The 'phyloseq' package must be installed to use this function.")
+  }
+
+  # Extract components
+  otutab <- rownames_to_column(amp$abund, var = "ID") %>% as_tibble() %>%  column_to_rownames("ID")
+  meta <- rownames_to_column(amp$metadata, var = "ID") %>% as_tibble() %>%  column_to_rownames("ID")
+  tax <- rownames_to_column(amp$tax, var = "ID") %>% as_tibble() %>%  column_to_rownames("ID") 
+
+  # Validate components
+  if (is.null(otutab) || is.null(meta)) {
+    stop("The ampvis2 object must contain both 'abund' and 'metadata'.")
+  }
+
+  ps <- phyloseq::phyloseq(
+    otu_table(otutab, taxa_are_rows = TRUE), 
+    sample_data(meta), 
+     tax_table(as.matrix(tax)) 
+                                     )
+  return(ps)
+}
+
+
+
+## Convert ps to amp
+phyloseq2amp <- function(ps) {
+  if (!requireNamespace("phyloseq", quietly = TRUE)) {
+    stop("The 'phyloseq' package must be installed.")
+  }
+
+  # Extract OTU table
+  otu <- as.data.frame(phyloseq::otu_table(ps))
+  if (!phyloseq::taxa_are_rows(ps)) {
+    otu <- t(otu)
+  }
+  otu <- tibble::rownames_to_column(otu, var = "OTU")
+
+  # Extract sample metadata
+  metadata <- data.frame(phyloseq::sample_data(ps))
+  if (!"SampleID" %in% colnames(metadata)) {
+  metadata <- tibble::rownames_to_column(metadata, var = "SampleID")
+  metadata <-  metadata %>% dplyr::relocate(SampleID, .before = 1)
+}
+
+  # Extract taxonomy table (if available)
+   if (!is.null(phyloseq::tax_table(ps, errorIfNULL = FALSE))) {
+  tax <- as.data.frame(phyloseq::tax_table(ps))
+  
+  if (!"OTU" %in% colnames(tax)) {
+    tax <- tibble::rownames_to_column(tax, var = "OTU")
+  }
+  
+  tax <- dplyr::relocate(tax, OTU, .before = 1)
+} else {
+  tax <- NULL
+}
+  
+  # Create ampvis2 object
+  amp <- ampvis2::amp_load(otutable = otu, metadata = metadata, taxonomy = tax, removeAbsentOTUs = FALSE)
+
+  return(amp)
+}
 
 ```
 
@@ -202,30 +269,93 @@ Just to see how microbial 16S abundances vary among the selected samples. We exp
 ```{r message=FALSE, warning=FALSE, echo=F}
 symbolsize <- 3
 
-# Filter data
+# Prepare data 
 filtervec <- c("2023-05-01", "2023-05-15", "2023-06-07","2023-06-12")  # 12thJuneDNA = 13th June EPS
 filtervec2 <- c("AD1", "AD2", "AD3", "AD4", "AD5","AD6")  # check
 physeqPCA <- phyloseq::subset_samples(ps.flt, Date %in% filtervec)
 physeqPCA <- phyloseq::subset_samples(physeqPCA, AD %in% filtervec2)
-physeqPCA <- prune_taxa(taxa_sums(physeqPCA) >= 0, physeqPCA)
+physeqPCA <- prune_taxa(taxa_sums(physeqPCA) > 0, physeqPCA)
+#data.frame(sample_data(physeqPCA))$AD
+# Convert abundance counts 
+#physeqPCA <- microbiome::transform(physeqPCA, "clr")
+physeqPCA <- microbiome::transform(physeqPCA, "compositional")
+#physeqPCA <- prune_taxa(taxa_sums(physeqPCA) > 0, physeqPCA)
+check <- data.frame(t(otu_table(physeqPCA)), check.names = FALSE )
+# Run the pca workflow
+# summary(otu_table(ps.temp))
+pca <- prcomp(data.frame(t(otu_table(physeqPCA)), check.names = FALSE ), scale = TRUE, center = TRUE)
+# Sample ordination 
+pca_scores <- as.data.frame(pca$x) %>%
+  tibble::rownames_to_column("SampleID")
 
-# Convert abundance counts into ratios
-physeqPCA <- microbiome::transform(physeqPCA, "clr")
-abundances <- data.frame(otu_table(physeqPCA))
-#write.csv(abundances, "16S-abundances.csv")
-ordination <- phyloseq::ordinate(physeqPCA , "RDA") # using the centred-log transformed abundances
-sitescores <- data.frame(ordination$CA$u)
-#write.csv(sitescores, "sitescores.csv")
-speciesscores <- data.frame(ordination$CA$v)
-#write.csv(speciesscores, "speciesscores.csv")
-# ordination$CA$eig
-DF <- plot_ordination(physeqPCA, ordination, justDF = TRUE, axes=1:2)
-# plotting ordination
-ggplot(data = DF,aes(x=PC1, y=PC2,  color = Treatment, shape = as.character(Period)) ) + 
-    geom_point(alpha = 0.5, na.rm=TRUE, size = symbolsize) +
-    geom_text(label = DF$AD,  nudge_x = 0.4, nudge_y = 0.4, alpha = 0.5) +
-   labs(shape = "Date")
-#ggsave(plot = p, "./Figures/PCA_EPSsubset.png", height=7, width=11, units='cm', dpi=300)
+var_explained <- pca$sdev^2 / sum(pca$sdev^2) * 100
+meta <- as.data.frame(sample_data(physeqPCA)) %>%
+  tibble::rownames_to_column("SampleID")
+plot_df <- left_join(pca_scores, meta, by = "SampleID")
+rm(meta, check)
+
+p2 <- ggplot(plot_df, aes(x = PC1, y = PC2, color = Treatment)) +
+  geom_point(size = 2) +
+  xlab(paste0("PC1 (", round(var_explained[1], 1), "%)")) +
+  ylab(paste0("PC2 (", round(var_explained[2], 1), "%)")) +
+  #coord_fixed() +
+  theme_minimal() +
+  labs(subtitle = "PCA = stats::prcomp without scaling")
+p2
+ggsave(plot = p2, "./Figures/PCA_OTUs_EPSsubset_noscaling.pdf", height=10, width=12, units='cm', dpi=300)
+ggsave(plot = p2, "./Figures/PCA_OTUs_EPSsubset_noscaling.png", height=10, width=12, units='cm', dpi=300)
+
+
+# Run the alternative pcr workflow for otu abundances
+# Used vegan::rda and scales coordinates with vegan::scores(ordination, scaling = 2). 
+ordination <- phyloseq::ordinate(physeqPCA, method = "RDA")
+pca_scores <- plot_ordination(physeqPCA, ordination, justDF = TRUE, axes=1:2) 
+scores <- vegan::scores(ordination)
+scores$sites
+ordination <- phyloseq::ordinate(physeqPCA, method = "RDA")
+scores_raw <- ordination$CA$u
+
+# Step 3: Extract eigenvalues (inertia) and calculate % variance explained
+eigvals <- ordination$CA$eig
+var_exp <- eigvals / sum(eigvals) * 100
+pc1_label <- paste0("PC1 (", round(var_exp[1], 1), "%)")
+pc2_label <- paste0("PC2 (", round(var_exp[2], 1), "%)")
+# Plot using ggplot
+p <- ggplot(pca_scores, aes(x = PC1, y = PC2, color = Treatment)) +
+  geom_point(size = 2) +
+  xlab(pc1_label) +
+  ylab(pc2_label) +
+  #coord_fixed() +
+  theme_minimal() +
+  labs(subtitle = "PCA = vegan::rda, vegan::scores(ordination, scaling = 2)")
+p
+# PC1 49.7%
+ggsave(plot = p, "./Figures/PCA_OTUs_EPSsubset_scaling.pdf", height=10, width=12, units='cm', dpi=300)
+ggsave(plot = p, "./Figures/PCA_OTUs_EPSsubset_scaling.png", height=10, width=12, units='cm', dpi=300)
+
+
+
+# Loading plot (no scaling)
+loadings_df <- as.data.frame(pca$rotation) %>%
+  rownames_to_column("OTU") # Makes the variable names a column
+
+# select PCs to plot
+loadings_df <- loadings_df %>% dplyr::select(OTU:PC3) %>% 
+  pivot_longer(cols = -OTU, names_to = "PC") %>% 
+  mutate(abs_value = abs(value)) %>%
+  arrange(PC, desc(abs_value))  # Sort by PC, then by abs loading
+
+p1 <- ggscatter(loadings_df, y = "value", x = "OTU", 
+          alpha = 0.2, size = 0.6,
+          color = "PC") +
+  ylab("PC contribution") + xlab("OTU")  + 
+  scale_color_discrete(name = "Contributions to PC")   +
+  guides(colour = guide_legend(override.aes = list(size = 4), 
+                               keywidth = 0.5, 
+                                keyheight = 0.5))+ 
+  theme(legend.position = c(0.9, 0.9))
+p1
+
 ```
 
 ## Raw spectra
@@ -423,7 +553,7 @@ ps.temp <- psATR
 # summary(otu_table(ps.temp))
 pca <- prcomp(data.frame(t(otu_table(ps.temp)), check.names = FALSE ), scale = FALSE, center = TRUE)
 
-# Coordinates
+# Loadings
 loadings_df <- as.data.frame(pca$rotation) %>%
   rownames_to_column("Wavelength") %>% 
   mutate(Wavelength = as.numeric(Wavelength)) # Makes the variable names a column
@@ -445,14 +575,14 @@ ggscatter(loadings_df, y = "value", x = "Wavelength",
   theme(legend.position = c(0.9, 0.9))
 ```
 
-#### AVE**
+#### AVE** used
 ```{r}
 library(ggrepel)
 ps.temp <- psAVE
 # summary(otu_table(ps.temp))
 pca <- prcomp(data.frame(t(otu_table(ps.temp)), check.names = FALSE ), scale = FALSE, center = TRUE)
 
-# Coordinates
+# Loadings
 loadings_df <- as.data.frame(pca$rotation) %>%
   rownames_to_column("Wavelength") %>% 
   mutate(Wavelength = as.numeric(Wavelength))   # Makes the variable names a column
@@ -492,9 +622,11 @@ ggscatter(loadings_df, y = "value", x = "Wavelength",
                   nudge_y = -0.02,
                   direction = "y",
                   segment.color = "grey30",
-                  segment.size = 0.3) 
+                  segment.size = 0.3) +
+  labs(x = expression("Wavenumber (cm"^{-1}*")"))
 
 ggsave("./Figures/PCloadings.pdf", height=10, width=25, units='cm', dpi=300)
+ggsave("./Figures/PCloadings.png", height=10, width=25, units='cm', dpi=300)
 ```
 
 
