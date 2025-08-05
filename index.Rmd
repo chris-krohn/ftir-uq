@@ -312,7 +312,6 @@ ordination <- phyloseq::ordinate(physeqPCA, method = "RDA")
 pca_scores <- plot_ordination(physeqPCA, ordination, justDF = TRUE, axes=1:2) 
 scores <- vegan::scores(ordination)
 scores$sites
-ordination <- phyloseq::ordinate(physeqPCA, method = "RDA")
 scores_raw <- ordination$CA$u
 
 # Step 3: Extract eigenvalues (inertia) and calculate % variance explained
