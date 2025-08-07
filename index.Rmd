@@ -281,7 +281,8 @@ physeqPCA <- prune_taxa(taxa_sums(physeqPCA) > 0, physeqPCA)
 physeqPCA <- microbiome::transform(physeqPCA, "compositional")
 #physeqPCA <- prune_taxa(taxa_sums(physeqPCA) > 0, physeqPCA)
 check <- data.frame(t(otu_table(physeqPCA)), check.names = FALSE )
-# Run the pca workflow
+
+# Run the pca workflow 1
 # summary(otu_table(ps.temp))
 pca <- prcomp(data.frame(t(otu_table(physeqPCA)), check.names = FALSE ), scale = TRUE, center = TRUE)
 # Sample ordination 
@@ -306,13 +307,13 @@ ggsave(plot = p2, "./Figures/PCA_OTUs_EPSsubset_noscaling.pdf", height=10, width
 ggsave(plot = p2, "./Figures/PCA_OTUs_EPSsubset_noscaling.png", height=10, width=12, units='cm', dpi=300)
 
 
-# Run the alternative pcr workflow for otu abundances
+# Run the alternative pcr workflow for otu abundances (this will give a different result)
 # Used vegan::rda and scales coordinates with vegan::scores(ordination, scaling = 2). 
 ordination <- phyloseq::ordinate(physeqPCA, method = "RDA")
 pca_scores <- plot_ordination(physeqPCA, ordination, justDF = TRUE, axes=1:2) 
 scores <- vegan::scores(ordination)
 scores$sites
-scores_raw <- ordination$CA$u
+scores_raw <- ordination$CA$v
 
 # Step 3: Extract eigenvalues (inertia) and calculate % variance explained
 eigvals <- ordination$CA$eig
@@ -337,6 +338,9 @@ ggsave(plot = p, "./Figures/PCA_OTUs_EPSsubset_scaling.png", height=10, width=12
 # Loading plot (no scaling)
 loadings_df <- as.data.frame(pca$rotation) %>%
   rownames_to_column("OTU") # Makes the variable names a column
+write.csv(loadings_df, "./data/07Aug-speciesscores_raw_24samples.csv")
+taxdf <- data.frame(tax_table(physeqPCA))
+write.csv(taxdf, "./data/07Aug-tax_table24_samples.csv")
 
 # select PCs to plot
 loadings_df <- loadings_df %>% dplyr::select(OTU:PC3) %>% 
