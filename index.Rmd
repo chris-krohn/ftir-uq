@@ -172,6 +172,7 @@ phyloseq2amp <- function(ps) {
   return(amp)
 }
 
+
 ```
 
 ## Gas flow - ind ADs 
@@ -263,6 +264,72 @@ masterdata %>%
 #ggsave("./Figures/Sup_lineplot_gasdaily_indADs.png", height=15, width=25, units='cm', dpi=300)
 ```
 
+## Create otu tables for Bushra
+```{r}
+#filtervec <- c("2023-03-10", "2023-03-14","2023-03-15", "2023-03-22","2023-03-29","2023-04-03","2023-04-05",
+#               "2023-04-05","2023-04-12","2023-04-19","2023-04-24","2023-04-26","2023-04-28",
+#               "2023-05-01", "2023-05-04","2023-05-08","2023-05-11","2023-05-15", "2023-05-18","2023-05-24",
+#               "2023-06-07","2023-06-12","2023-06-12","2023-06-13","2023-06-14","2023-06-20","2023-06-21" ,"2023-06-27","2023-06-28",
+#               "2023-07-05","2023-07-12","2023-07-18","2023-07-26","2023-08-02","2023-08-08"
+#                    )  # 12thJuneDNA = 13th June EPS
+
+
+
+
+#check <- sample_data(ps.flt)
+check <- data.frame(sample_data(ps_1C)) %>% rownames_to_column("ID") %>% dplyr::select(Date, AD, ID)
+check.uq <- masterdata %>% dplyr::filter(UQ.ID != "") %>% dplyr::select(Date, SampleID.DNA, AD, UQ.ID)
+check.both <- check.uq %>% dplyr::select(Date, SampleID.DNA, AD, UQ.ID) %>% left_join(check, by = c("Date", "AD")) %>% 
+  dplyr::select(Date, SampleID.DNA, AD, UQ.ID, ID)
+
+selection <- na.omit(check.both$ID)  # select Sequence IDs. 
+# Add sequence IDs of samples that do not exactly match UQ dates. 
+selection <- c(selection, "S119.full", "S1317.AD1", "S1318.AD2", "S1319.AD3", "S1320.AD4", "S1321.AD5", "S1322.AD6",
+               "S1273.ADFull",
+               "S1619.AD1", "S1620.AD2", "S1621.AD3", "S1622.AD4", "S1623.AD5", "S1624.AD6",  #17/7
+               "S1741.AD1", "S1742.AD2", "S1743.AD3", "S1744.AD4", "S1745.AD5", "S1746.AD6",  # 8/9
+               "S27.AD1", "S30.AD4", "S32.AD6", "F10")  # 8/3
+length(selection)
+
+sample_data(ps_1C)$SampleID <- rownames(sample_data(ps_1C)) 
+
+ps.flt <- phyloseq::subset_samples(ps_1C, SampleID  %in% selection )
+ps.flt <- prune_taxa(taxa_sums(ps.flt) > 0, ps.flt)
+
+metadata <- data.frame(sample_data(ps.flt)) %>% rownames_to_column("SampleID.DNA")
+metadata <- metadata %>% left_join(check.uq %>% dplyr::select(Date, AD, SampleID.DNA, UQ.ID), by = c("Date", "AD"))
+write.csv(metadata, "./data/metadata_bushra_147samples.csv", row.names = FALSE)
+otus <- data.frame(otu_table(ps.flt))
+taxa <- data.frame(tax_table(ps.flt))
+otu_table <- otus %>% rownames_to_column("ASV") %>% left_join(taxa %>% rownames_to_column("ASV"))
+write.csv(otu_table, "./data/otutable_bushra_raw.csv", row.names = FALSE)
+
+
+ps.flt <- prune_taxa(taxa_sums(ps.flt) >= 10, ps.flt)
+otus <- data.frame(otu_table(ps.flt))
+taxa <- data.frame(tax_table(ps.flt))
+otu_table <- otus %>% rownames_to_column("ASV") %>% left_join(taxa %>% rownames_to_column("ASV"))
+write.csv(otu_table, "./data/otutable_bushra_>=10counts.csv", row.names = FALSE)
+
+
+ps_g <- microbiome::aggregate_taxa(ps.flt, level = "Genus")
+otus <- data.frame(otu_table(ps_g))
+taxa <- data.frame(tax_table(ps_g))
+otu_table <- otus %>% rownames_to_column("ASV") %>% left_join(taxa %>% rownames_to_column("ASV"))
+write.csv(otu_table, "./data/otutable_bushra_>=10counts_genus.csv", row.names = FALSE)
+
+ps_f <- microbiome::aggregate_taxa(ps.flt, level = "Family")
+otus <- data.frame(otu_table(ps_f))
+taxa <- data.frame(tax_table(ps_f))
+otu_table <- otus %>% rownames_to_column("ASV") %>% left_join(taxa %>% rownames_to_column("ASV"))
+write.csv(otu_table, "./data/otutable_bushra_>=10counts_family.csv", row.names = FALSE)
+
+ps_o <- microbiome::aggregate_taxa(ps.flt, level = "Order")
+otus <- data.frame(otu_table(ps_o))
+taxa <- data.frame(tax_table(ps_o))
+otu_table <- otus %>% rownames_to_column("ASV") %>% left_join(taxa %>% rownames_to_column("ASV"))
+write.csv(otu_table, "./data/otutable_bushra_>=10counts_order.csv", row.names = FALSE)
+```
 
 ## Microbial 16S (V3V4) PCA 
 Just to see how microbial 16S abundances vary among the selected samples. We expect treated/inhibited samples (15th May) to be different. 
@@ -288,6 +355,8 @@ pca <- prcomp(data.frame(t(otu_table(physeqPCA)), check.names = FALSE ), scale =
 # Sample ordination 
 pca_scores <- as.data.frame(pca$x) %>%
   tibble::rownames_to_column("SampleID")
+
+vegan::scores(pca, choices=c(1,2))
 
 var_explained <- pca$sdev^2 / sum(pca$sdev^2) * 100
 meta <- as.data.frame(sample_data(physeqPCA)) %>%
@@ -338,9 +407,9 @@ ggsave(plot = p, "./Figures/PCA_OTUs_EPSsubset_scaling.png", height=10, width=12
 # Loading plot (no scaling)
 loadings_df <- as.data.frame(pca$rotation) %>%
   rownames_to_column("OTU") # Makes the variable names a column
-write.csv(loadings_df, "./data/07Aug-speciesscores_raw_24samples.csv")
+#write.csv(loadings_df, "./data/07Aug-speciesscores_raw_24samples.csv")
 taxdf <- data.frame(tax_table(physeqPCA))
-write.csv(taxdf, "./data/07Aug-tax_table24_samples.csv")
+#write.csv(taxdf, "./data/07Aug-tax_table24_samples.csv")
 
 # select PCs to plot
 loadings_df <- loadings_df %>% dplyr::select(OTU:PC3) %>% 
@@ -647,3 +716,5 @@ p <- ggcorrplot(corr)
 p + ggtitle("AVE clr correlations to variables")
 #ggsave(plot = p, "./Figures/PC3correlations_clr.png", height=18, width=18, units='cm', dpi=300)
 ```
+
+
