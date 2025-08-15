@@ -311,7 +311,6 @@ taxa <- data.frame(tax_table(ps.flt))
 otu_table <- otus %>% rownames_to_column("ASV") %>% left_join(taxa %>% rownames_to_column("ASV"))
 write.csv(otu_table, "./data/otutable_bushra_>=10counts.csv", row.names = FALSE)
 
-
 ps_g <- microbiome::aggregate_taxa(ps.flt, level = "Genus")
 otus <- data.frame(otu_table(ps_g))
 taxa <- data.frame(tax_table(ps_g))
