@@ -64,20 +64,20 @@ ATRclr <- compositions::clr(ATR)
 head(ATRclr) %>% datatable(caption = "ATR clr") 
 
 # CREATE METADATA FOR 24 SELECTED SAMPLES AND MATCH SAMPLE NAMES WITH SPECTRA DF
-filtervec <- c("2023-05-01", "2023-05-15", "2023-06-07","2023-06-12")  # 12thJuneDNA = 13th June EPS
-filtervec2 <- c("AD1", "AD2", "AD3", "AD4", "AD5","AD6")  # check
-metadata <- masterdata %>% 
-  dplyr::filter(Date %in% filtervec & 
-                  AD %in% filtervec2)
-metadata$SampleID.EPS <- colnames(ATR)
-metadata <- metadata %>% column_to_rownames("SampleID.EPS")
-head(metadata ) %>% datatable(caption = "metadata for 24 selected samples") 
+#filtervec <- c("2023-05-01", "2023-05-15", "2023-06-07","2023-06-12")  # 12thJuneDNA = 13th June EPS
+#filtervec2 <- c("AD1", "AD2", "AD3", "AD4", "AD5","AD6")  # check
+#metadata <- masterdata %>% 
+#  dplyr::filter(Date %in% filtervec & 
+#                  AD %in% filtervec2)
+#metadata$SampleID.EPS <- colnames(ATR)
+#metadata <- metadata %>% column_to_rownames("SampleID.EPS")
+#head(metadata ) %>% datatable(caption = "metadata for 24 selected samples") 
 
 # CREATE A PHYLOSEQ OBJECTS (combined metadata and spectra)
-psATR <-phyloseq(
-  otu_table(ATR, taxa_are_rows = T), 
-  sample_data(metadata)
-)
+#psATR <-phyloseq(
+#  otu_table(ATR, taxa_are_rows = T), 
+#  sample_data(metadata)
+#)
 
 #psATRclr <-phyloseq(
 #  otu_table(ATRclr, taxa_are_rows = T), 
@@ -86,27 +86,58 @@ psATR <-phyloseq(
 
 
 # ABSORBANCE DATA 
-AVE <- read.csv("./data/AVE.csv")[-1,] 
-AVE <- AVE %>% rownames_to_column("ID")%>% column_to_rownames("X") %>% dplyr::select(-ID) %>% 
-  mutate(across(S537_AD1:S1370_AD6, as.numeric))
+#AVE <- read.csv("./data/AVE.csv")[-1,] 
+#AVE <- AVE %>% rownames_to_column("ID")%>% column_to_rownames("X") %>% dplyr::select(-ID) %>% 
+#  mutate(across(S537_AD1:S1370_AD6, as.numeric))
 # OPTION 1: raw
-AVE <-  as.matrix(AVE)
+#AVE <-  as.matrix(AVE)
 # OPTION 2: clr transformed
-AVEclr <- compositions::clr(AVE)
+#AVEclr <- compositions::clr(AVE)
 # head(AVEclr)
 
 # CREATE A PHYLOSEQ OBJECTS (combined metadata and spectra)
-psAVE <-phyloseq(
-  otu_table(AVE, taxa_are_rows = T), 
-  sample_data(metadata)
-)
+#psAVE <-phyloseq(
+#  otu_table(AVE, taxa_are_rows = T), 
+#  sample_data(metadata)
+#)
 
 #psAVEclr <-phyloseq(
 #  otu_table(AVEclr, taxa_are_rows = T), 
 #  sample_data(metadata)
 #)
 
-# FUnctions 
+
+### Picrust data import into phyloseq
+# "otu_table"
+pws <- data.frame(read_tsv("./data/picrust_pathway_abundances_unstrat.tsv", col_names = TRUE)) %>% 
+          rename(Id = "pathway") 
+# "tax_table"
+MC_names <- read_tsv("./data/picrust_pathway_names_metacy_full.tsv") %>% 
+  dplyr::select(-ALTERNATIVE) %>%
+  dplyr::select(-`SUPER-PATHWAYS`)%>% 
+  dplyr::select(-NAMES) %>% 
+  dplyr::rename(Pathway2 = "COMMON-NAME") 
+# "tax_table new"
+MC_names_new <- read_tsv("./data/picrust_pathway_names_metacyc_select.tsv") 
+#Combine
+MC_names <- MC_names_new %>% dplyr::full_join(MC_names, by = "Id") %>% 
+  filter(Id %in% pws$Id) %>% 
+  column_to_rownames("Id")
+
+pws <- pws %>% column_to_rownames("Id")
+
+sample_data(ps_1C)$SampleID <- rownames(data.frame(sample_data(ps_1C)))
+metadata <- data.frame(sample_data(ps_1C))
+
+
+ps_pw <- phyloseq(
+  otu_table(pws, taxa_are_rows = T), 
+  sample_data(metadata),
+  phyloseq::tax_table(MC_names %>% as.matrix())
+)
+
+
+# Functions 
 
 amp2phyloseq <- function(amp) {
   if (!requireNamespace("phyloseq", quietly = TRUE)) {
@@ -264,7 +295,7 @@ masterdata %>%
 #ggsave("./Figures/Sup_lineplot_gasdaily_indADs.png", height=15, width=25, units='cm', dpi=300)
 ```
 
-## Create otu tables for Bushra
+## Create otu tables for Bushra - Microbes
 ```{r}
 #filtervec <- c("2023-03-10", "2023-03-14","2023-03-15", "2023-03-22","2023-03-29","2023-04-03","2023-04-05",
 #               "2023-04-05","2023-04-12","2023-04-19","2023-04-24","2023-04-26","2023-04-28",
@@ -328,6 +359,45 @@ otus <- data.frame(otu_table(ps_o))
 taxa <- data.frame(tax_table(ps_o))
 otu_table <- otus %>% rownames_to_column("ASV") %>% left_join(taxa %>% rownames_to_column("ASV"))
 write.csv(otu_table, "./data/otutable_bushra_>=10counts_order.csv", row.names = FALSE)
+```
+
+## Create otu tables for Bushra - Picrust2
+```{r}
+#check <- sample_data(ps.flt)
+check <- data.frame(sample_data(ps_pw)) %>% rownames_to_column("ID") %>% dplyr::select(Date, AD, ID)
+check.uq <- masterdata %>% dplyr::filter(UQ.ID != "") %>% dplyr::select(Date, SampleID.DNA, AD, UQ.ID)
+check.both <- check.uq %>% dplyr::select(Date, SampleID.DNA, AD, UQ.ID) %>% left_join(check, by = c("Date", "AD")) %>% 
+  dplyr::select(Date, SampleID.DNA, AD, UQ.ID, ID)
+
+selection <- na.omit(check.both$ID)  # select Sequence IDs. 
+# Add sequence IDs of samples that do not exactly match UQ dates. 
+selection <- c(selection, "S119.full", "S1317.AD1", "S1318.AD2", "S1319.AD3", "S1320.AD4", "S1321.AD5", "S1322.AD6",
+               "S1273.ADFull",
+               "S1619.AD1", "S1620.AD2", "S1621.AD3", "S1622.AD4", "S1623.AD5", "S1624.AD6",  #17/7
+               "S1741.AD1", "S1742.AD2", "S1743.AD3", "S1744.AD4", "S1745.AD5", "S1746.AD6",  # 8/9
+               "S27.AD1", "S30.AD4", "S32.AD6", "F10")  # 8/3
+length(selection)
+
+# PATHWAYS
+ps.flt <- phyloseq::subset_samples(ps_pw, SampleID  %in% selection )
+ps.flt <- prune_taxa(taxa_sums(ps.flt ) > 0, ps.flt )
+
+otus <- data.frame(otu_table(ps.flt))
+taxa <- data.frame(tax_table(ps.flt))
+otu_table <- otus %>% rownames_to_column("ASV") %>% left_join(taxa %>% rownames_to_column("ASV"))
+write.csv(otu_table, "./data/otutable_bushra_picrust_pathways_raw.csv", row.names = FALSE)
+
+
+# ENZYMES
+ps.flt <- phyloseq::subset_samples(ps_pw, SampleID  %in% selection )
+ps.flt <- prune_taxa(taxa_sums(ps.flt ) > 0, ps.flt )
+
+otus <- data.frame(otu_table(ps.flt))
+taxa <- data.frame(tax_table(ps.flt))
+otu_table <- otus %>% rownames_to_column("ASV") %>% left_join(taxa %>% rownames_to_column("ASV"))
+write.csv(otu_table, "./data/otutable_bushra_picrust_pathways_raw.csv", row.names = FALSE)
+
+
 ```
 
 ## Microbial 16S (V3V4) PCA 
